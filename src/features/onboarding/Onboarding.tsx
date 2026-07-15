@@ -22,8 +22,8 @@ export const Onboarding: React.FC = () => {
       qLinked: false
     };
     setProfile(profile);
-    // Add initial empty goals for 2026
-    usePlannerStore.getState().updateYearGoals(2026, {
+    // Add initial empty goals for current year
+    usePlannerStore.getState().updateYearGoals(new Date().getFullYear(), {
       study: '',
       portfolio: '',
       health: '',

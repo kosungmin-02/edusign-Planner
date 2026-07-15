@@ -12,7 +12,7 @@ export const Daily: React.FC = () => {
   const navigate = useNavigate();
   const { profile, dailyLogs, updateDailyLog, addAttendance } = usePlannerStore();
 
-  const defaultDateStr = profile.name === '이지수' ? '2026-07-09' : format(new Date(), 'yyyy-MM-dd');
+  const defaultDateStr = format(new Date(), 'yyyy-MM-dd');
   const dateStr = date || defaultDateStr;
 
   const currentParsedDate = parseISO(dateStr);
@@ -49,7 +49,7 @@ export const Daily: React.FC = () => {
     }
     updateDailyLog(dateStr, updates);
 
-    const todayStr = format(profile.name === '이지수' ? new Date(2026, 6, 9) : new Date(), 'yyyy-MM-dd');
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
     if (dateStr === todayStr && (field === 'resolution' || field === 'prayer') && value) {
       addAttendance(dateStr, 'planner');
     }
@@ -69,7 +69,7 @@ export const Daily: React.FC = () => {
     setNewNote('');
     
     // Auto attendance
-    const todayStr = format(profile.name === '이지수' ? new Date(2026, 6, 9) : new Date(), 'yyyy-MM-dd');
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
     if (dateStr === todayStr) addAttendance(dateStr, 'planner');
   };
 
@@ -91,7 +91,7 @@ export const Daily: React.FC = () => {
     updateDailyLog(dateStr, { timeBlocks: updated });
     setNewPlan('');
 
-    const todayStr = format(profile.name === '이지수' ? new Date(2026, 6, 9) : new Date(), 'yyyy-MM-dd');
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
     if (dateStr === todayStr) addAttendance(dateStr, 'planner');
   };
 

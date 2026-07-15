@@ -26,8 +26,7 @@ export const Dashboard: React.FC = () => {
     updateWeeklyPlanItem
   } = usePlannerStore();
 
-  const isDemo = profile.name === '이지수';
-  const todayDate = isDemo ? new Date(2026, 6, 9) : new Date();
+  const todayDate = new Date();
   const todayStr = format(todayDate, 'yyyy-MM-dd');
   const dayIdx = getDay(todayDate);
   const weekdayKey = (['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as Weekday[])[dayIdx];

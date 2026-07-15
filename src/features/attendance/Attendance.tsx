@@ -22,10 +22,9 @@ const BADGES: BadgeDetail[] = [
 ];
 
 export const Attendance: React.FC = () => {
-  const { streak, attendanceRecords, profile } = usePlannerStore();
-  
-  const isDemo = profile.name === '이지수';
-  const today = isDemo ? new Date(2026, 6, 9) : new Date();
+  const { streak, attendanceRecords } = usePlannerStore();
+
+  const today = new Date();
   
   const [hoverText, setHoverText] = useState('칸에 마우스를 올리면 날짜가 표시됩니다');
 

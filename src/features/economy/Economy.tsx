@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePlannerStore } from '../../stores/plannerStore';
-import type { SpendCategory } from '../../types';
+import type { SpendCategory, SelfRating } from '../../types';
 import { format, addMonths, subMonths } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 
@@ -11,9 +11,42 @@ const CATEGORY_LABELS: Record<SpendCategory, string> = {
   personal: '개인 용도/용돈'
 };
 
+const RATING_EMOJI: Record<SelfRating, string> = {
+  good: '😊',
+  ok: '😐',
+  bad: '😢'
+};
+
+// 항목별 자가평가 버튼 (같은 평가 재클릭 시 해제)
+const RatingPicker: React.FC<{
+  value?: SelfRating;
+  titles: Record<SelfRating, string>;
+  onChange: (rating?: SelfRating) => void;
+}> = ({ value, titles, onChange }) => (
+  <div className="rating-inline-group">
+    {(['good', 'ok', 'bad'] as const).map(rate => (
+      <button
+        key={rate}
+        type="button"
+        title={titles[rate]}
+        onClick={() => onChange(value === rate ? undefined : rate)}
+        className={`rating-btn rating-btn-sm ${value === rate ? 'active' : ''}`}
+      >
+        {RATING_EMOJI[rate]}
+      </button>
+    ))}
+  </div>
+);
+
+const SERVING_RATING_TITLES: Record<SelfRating, string> = {
+  good: '기쁘게 섬김',
+  ok: '대체로 잘함',
+  bad: '억지로 함'
+};
+
 export const Economy: React.FC = () => {
   const { profile, getEconomyMonth, updateEconomyMonth } = usePlannerStore();
-  const [currentDate, setCurrentDate] = useState(profile.name === '이지수' ? new Date(2026, 6, 9) : new Date());
+  const [currentDate, setCurrentDate] = useState(new Date());
   const monthStr = format(currentDate, 'yyyy-MM');
 
   const economyData = getEconomyMonth(monthStr);
@@ -41,6 +74,7 @@ export const Economy: React.FC = () => {
   };
 
   // Serving items
+  const [newServingDate, setNewServingDate] = useState('');
   const [newServingContent, setNewServingContent] = useState('');
   const [newServingUnitPrice, setNewServingUnitPrice] = useState(1000);
   const [newServingCount, setNewServingCount] = useState(1);
@@ -50,6 +84,7 @@ export const Economy: React.FC = () => {
     if (!newServingContent.trim()) return;
 
     const items = [...economyData.serving.items, {
+      ...(newServingDate ? { date: newServingDate } : {}),
       content: newServingContent.trim(),
       unitPrice: newServingUnitPrice,
       count: newServingCount
@@ -59,6 +94,7 @@ export const Economy: React.FC = () => {
       serving: { ...economyData.serving, items }
     });
 
+    setNewServingDate('');
     setNewServingContent('');
     setNewServingUnitPrice(1000);
     setNewServingCount(1);
@@ -71,13 +107,17 @@ export const Economy: React.FC = () => {
     });
   };
 
-  const handleRatingChange = (rating: 'good' | 'ok' | 'bad') => {
+  const handleServingRating = (idx: number, rating?: SelfRating) => {
+    const items = economyData.serving.items.map((item, i) =>
+      i === idx ? { ...item, rating } : item
+    );
     updateEconomyMonth(monthStr, {
-      serving: { ...economyData.serving, rating }
+      serving: { ...economyData.serving, items }
     });
   };
 
   // Spending Plan
+  const [newPlanDate, setNewPlanDate] = useState('');
   const [newPlanLabel, setNewPlanLabel] = useState('');
   const [newPlanCategory, setNewPlanCategory] = useState<SpendCategory>(profile.mode === 'faith' ? 'tithe' : 'donation');
   const [newPlanAmount, setNewPlanAmount] = useState(1000);
@@ -87,12 +127,14 @@ export const Economy: React.FC = () => {
     if (!newPlanLabel.trim()) return;
 
     const spendingPlan = [...economyData.spendingPlan, {
+      ...(newPlanDate ? { date: newPlanDate } : {}),
       category: newPlanCategory,
       label: newPlanLabel.trim(),
       amount: newPlanAmount
     }];
 
     updateEconomyMonth(monthStr, { spendingPlan });
+    setNewPlanDate('');
     setNewPlanLabel('');
     setNewPlanAmount(1000);
   };
@@ -106,7 +148,7 @@ export const Economy: React.FC = () => {
   const [newActualLabel, setNewActualLabel] = useState('');
   const [newActualCategory, setNewActualCategory] = useState<SpendCategory>(profile.mode === 'faith' ? 'tithe' : 'donation');
   const [newActualAmount, setNewActualAmount] = useState(1000);
-  const [newActualDate, setNewActualDate] = useState(format(profile.name === '이지수' ? new Date(2026, 6, 9) : new Date(), 'yyyy-MM-dd'));
+  const [newActualDate, setNewActualDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   const handleAddActualItem = (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,25 +226,35 @@ export const Economy: React.FC = () => {
           <table className="economy-table mb-12">
             <thead>
               <tr>
+                <th className="w-15">날짜</th>
                 <th>섬김 및 수고 내용</th>
                 <th className="w-20 text-right">단가</th>
                 <th className="w-15 text-center">횟수</th>
                 <th className="w-20 text-right">금액</th>
+                <th className="text-center" title="😊 기쁘게 섬김 · 😐 대체로 잘함 · 😢 억지로 함">성실도</th>
                 <th className="w-10 no-print">삭제</th>
               </tr>
             </thead>
             <tbody>
               {economyData.serving.items.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="empty-sub text-center">기록된 수입 활동이 없습니다.</td>
+                  <td colSpan={7} className="empty-sub text-center">기록된 수입 활동이 없습니다.</td>
                 </tr>
               ) : (
                 economyData.serving.items.map((item, idx) => (
                   <tr key={idx}>
+                    <td className="text-secondary">{item.date ? item.date.slice(5) : '－'}</td>
                     <td>{item.content}</td>
                     <td className="text-right">{item.unitPrice.toLocaleString()}원</td>
                     <td className="text-center">{item.count}회</td>
                     <td className="text-right font-medium">{(item.unitPrice * item.count).toLocaleString()}원</td>
+                    <td className="text-center">
+                      <RatingPicker
+                        value={item.rating}
+                        titles={SERVING_RATING_TITLES}
+                        onChange={(rating) => handleServingRating(idx, rating)}
+                      />
+                    </td>
                     <td className="no-print text-center">
                       <button type="button" onClick={() => handleDeleteServingItem(idx)} className="btn-delete-sm">
                         <Trash2 size={14} />
@@ -212,8 +264,9 @@ export const Economy: React.FC = () => {
                 ))
               )}
               <tr className="table-total-row">
-                <td colSpan={3} className="text-right">수입 합계:</td>
+                <td colSpan={4} className="text-right">수입 합계:</td>
                 <td className="text-right" style={{ color: 'var(--accent)' }}>{incomeTotal.toLocaleString()}원</td>
+                <td></td>
                 <td className="no-print"></td>
               </tr>
             </tbody>
@@ -221,6 +274,13 @@ export const Economy: React.FC = () => {
 
           {/* Add form */}
           <form onSubmit={handleAddServingItem} className="form-inline mb-16 no-print">
+            <input
+              type="date"
+              value={newServingDate}
+              onChange={(e) => setNewServingDate(e.target.value)}
+              style={{ width: '140px' }}
+              title="날짜 (선택)"
+            />
             <input
               type="text"
               placeholder="섬김 수고 내용 (예: 거실 청소 돕기)"
@@ -232,7 +292,7 @@ export const Economy: React.FC = () => {
             <input
               type="number"
               value={newServingUnitPrice}
-              onChange={(e) => setNewServingUnitPrice(Math.max(0, parseInt(e.target.value, 10)))}
+              onChange={(e) => setNewServingUnitPrice(Math.max(0, parseInt(e.target.value, 10) || 0))}
               style={{ width: '100px' }}
               min="0"
               required
@@ -240,7 +300,7 @@ export const Economy: React.FC = () => {
             <input
               type="number"
               value={newServingCount}
-              onChange={(e) => setNewServingCount(Math.max(1, parseInt(e.target.value, 10)))}
+              onChange={(e) => setNewServingCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
               style={{ width: '80px' }}
               min="1"
               required
@@ -248,23 +308,9 @@ export const Economy: React.FC = () => {
             <button type="submit" className="btn btn-primary">+</button>
           </form>
 
-          {/* Self rating */}
-          <div className="evaluation-row flex-between" style={{ borderTop: '2px dashed var(--line)', paddingTop: '14px', marginTop: '12px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600' }}>활동 성실도 자가 평가:</span>
-            <div className="rating-buttons">
-              {(['good', 'ok', 'bad'] as const).map(rate => (
-                <button
-                  key={rate}
-                  type="button"
-                  onClick={() => handleRatingChange(rate)}
-                  className={`rating-btn rate-${rate} ${economyData.serving.rating === rate ? 'active' : ''}`}
-                >
-                  {rate === 'good' && '😊 기쁘게 섬김'}
-                  {rate === 'ok' && '😐 대체로 잘함'}
-                  {rate === 'bad' && '😢 억지로 함'}
-                </button>
-              ))}
-            </div>
+          {/* Rating legend */}
+          <div style={{ borderTop: '2px dashed var(--line)', paddingTop: '10px', marginTop: '12px', fontSize: '12px', color: 'var(--soft)', textAlign: 'right' }}>
+            항목별 활동 성실도 자가평가 · 😊 기쁘게 섬김 &nbsp; 😐 대체로 잘함 &nbsp; 😢 억지로 함
           </div>
         </div>
       </div>
@@ -281,6 +327,7 @@ export const Economy: React.FC = () => {
             <table className="economy-table table-sm mb-12">
               <thead>
                 <tr>
+                  <th className="w-15">예정일</th>
                   <th>구분</th>
                   <th>명목</th>
                   <th className="text-right">금액</th>
@@ -290,11 +337,12 @@ export const Economy: React.FC = () => {
               <tbody>
                 {economyData.spendingPlan.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="empty-sub text-center">수립된 계획이 없습니다.</td>
+                    <td colSpan={5} className="empty-sub text-center">수립된 계획이 없습니다.</td>
                   </tr>
                 ) : (
                   economyData.spendingPlan.map((item, idx) => (
                     <tr key={idx}>
+                      <td className="text-secondary">{item.date ? item.date.slice(5) : '－'}</td>
                       <td><span className={`cat-tag cat-${item.category}`}>{CATEGORY_LABELS[item.category]}</span></td>
                       <td>{item.label}</td>
                       <td className="text-right">{item.amount.toLocaleString()}원</td>
@@ -310,6 +358,13 @@ export const Economy: React.FC = () => {
             </table>
 
             <form onSubmit={handleAddPlanItem} className="form-inline no-print">
+              <input
+                type="date"
+                value={newPlanDate}
+                onChange={(e) => setNewPlanDate(e.target.value)}
+                style={{ width: '130px' }}
+                title="예정일 (선택)"
+              />
               <select
                 value={newPlanCategory}
                 onChange={(e) => setNewPlanCategory(e.target.value as SpendCategory)}
@@ -330,7 +385,7 @@ export const Economy: React.FC = () => {
               <input
                 type="number"
                 value={newPlanAmount}
-                onChange={(e) => setNewPlanAmount(Math.max(0, parseInt(e.target.value, 10)))}
+                onChange={(e) => setNewPlanAmount(Math.max(0, parseInt(e.target.value, 10) || 0))}
                 style={{ width: '90px' }}
                 min="0"
                 required
@@ -411,7 +466,7 @@ export const Economy: React.FC = () => {
                 <input
                   type="number"
                   value={newActualAmount}
-                  onChange={(e) => setNewActualAmount(Math.max(0, parseInt(e.target.value, 10)))}
+                  onChange={(e) => setNewActualAmount(Math.max(0, parseInt(e.target.value, 10) || 0))}
                   style={{ width: '90px' }}
                   min="0"
                   required

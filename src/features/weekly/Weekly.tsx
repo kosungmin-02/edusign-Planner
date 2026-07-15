@@ -35,7 +35,6 @@ export const Weekly: React.FC = () => {
   const navigate = useNavigate();
   const { yyyyWww } = useParams<{ yyyyWww?: string }>();
   const {
-    profile,
     weeklyPlans,
     addWeeklyPlanItem,
     updateWeeklyPlanItem,
@@ -56,7 +55,7 @@ export const Weekly: React.FC = () => {
         return addWeeks(startOfJan4Week, week - 1);
       }
     }
-    return profile.name === '이지수' ? new Date(2026, 6, 9) : new Date();
+    return new Date();
   };
 
   const [currentDate, setCurrentDate] = useState(getBaseDate());
@@ -124,8 +123,8 @@ export const Weekly: React.FC = () => {
     const newChecks = { ...item.checks, [day]: nextCheck };
     updateWeeklyPlanItem(item.id, { checks: newChecks });
 
-    const todayStr = format(profile.name === '이지수' ? new Date(2026, 6, 9) : new Date(), 'yyyy-MM-dd');
-    const todayIdx = (profile.name === '이지수' ? new Date(2026, 6, 9) : new Date()).getDay();
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const todayIdx = new Date().getDay();
     const todayKey = (['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as Weekday[])[todayIdx];
     
     if (day === todayKey && nextCheck) {

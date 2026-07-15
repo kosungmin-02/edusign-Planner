@@ -19,8 +19,7 @@ export const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const { profile, streak, attendanceRecords, theme, setTheme } = usePlannerStore();
   
-  const isDemo = profile.name === '이지수';
-  const todayStr = format(isDemo ? new Date(2026, 6, 9) : new Date(), 'yyyy-MM-dd');
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
   
   const hasAttendedToday = attendanceRecords.some(r => r.date === todayStr);
 

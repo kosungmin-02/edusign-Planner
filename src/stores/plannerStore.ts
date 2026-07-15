@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { format, subDays, startOfWeek, getDay } from 'date-fns';
 import type {
   Profile,
   QProfile,
@@ -33,6 +34,7 @@ interface PlannerState {
   setTheme: (theme: 'light' | 'dark') => void;
   linkQProfile: () => void;
   unlinkQProfile: () => void;
+  updateQProfile: (updates: Partial<QProfile>) => void;
   updateYearGoals: (year: number, goals: Record<Area, string>) => void;
   updateMonthlyPlan: (month: string, plans: Record<Area, string>, calendarMemos: Record<string, string>) => void;
   addWeeklyPlanItem: (week: string, area: Area, content: string, activeDays: Weekday[]) => void;
@@ -89,9 +91,9 @@ export const usePlannerStore = create<PlannerState>()(
       
       linkQProfile: () => set((state) => {
         const updatedProfile = { ...state.profile, qLinked: true };
-        
+
         // Populate goals and plan templates if empty
-        const year = 2026;
+        const year = new Date().getFullYear();
         const existingYearGoal = state.yearGoals.find(g => g.year === year);
         const yearGoals = [...state.yearGoals];
         
@@ -116,6 +118,10 @@ export const usePlannerStore = create<PlannerState>()(
       unlinkQProfile: () => set((state) => ({
         profile: { ...state.profile, qLinked: false },
         qProfile: {}
+      })),
+
+      updateQProfile: (updates) => set((state) => ({
+        qProfile: { ...state.qProfile, ...updates }
       })),
 
       updateYearGoals: (year, goals) => set((state) => {
@@ -298,6 +304,29 @@ export const usePlannerStore = create<PlannerState>()(
       }),
 
       loadDemoData: () => {
+        // 데모 데이터는 로드하는 시점의 "오늘"을 기준으로 동적 생성된다.
+        const today = new Date();
+        const todayStr = format(today, 'yyyy-MM-dd');
+        const monthStr = format(today, 'yyyy-MM');
+        const monthLabel = format(today, 'M월');
+        const yearNum = today.getFullYear();
+
+        // 이번 주 키 (Dashboard/Weekly와 동일한 방식)
+        const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+        const weekStr = `${format(weekStart, 'yyyy')}-W${format(weekStart, 'I').padStart(2, '0')}`;
+
+        // 이번 주에서 오늘 이전 요일만 체크 표시 (오늘은 발표 중 라이브로 체크)
+        const WEEKDAY_ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+        const todayIdx = (getDay(today) + 6) % 7; // mon=0 ... sun=6
+        const buildChecks = (days: Weekday[], soften = false) => {
+          const past = days.filter(d => WEEKDAY_ORDER.indexOf(d) < todayIdx);
+          const checks: Partial<Record<Weekday, 'O' | '△' | 'X'>> = {};
+          past.forEach((d, i) => {
+            checks[d] = soften && i === past.length - 1 ? '△' : 'O';
+          });
+          return checks;
+        };
+
         // 1. Set Profile
         const demoProfile: Profile = {
           name: '이지수',
@@ -311,7 +340,7 @@ export const usePlannerStore = create<PlannerState>()(
 
         // 3. Set Year Goals
         const demoYearGoals: YearGoals = {
-          year: 2026,
+          year: yearNum,
           goals: {
             study: '수학 기출문제 분석 완료 및 한 달에 예술학 독서 1권 읽기',
             portfolio: '대극장 무대 모형 포트폴리오 2개 완성',
@@ -320,52 +349,52 @@ export const usePlannerStore = create<PlannerState>()(
           }
         };
 
-        // 4. Set Monthly Plan (July 2026)
+        // 4. Set Monthly Plan (이번 달)
         const demoMonthlyPlan: MonthlyPlan = {
-          month: '2026-07',
+          month: monthStr,
           plans: {
             study: '수학 2단원 오답 총정리, 예술사 1-3장 독파',
             portfolio: '셰익스피어 템페스트 무대 3D 디자인 스케치 완료',
-            health: '더운 날씨 피해 저녁 8시 야외 조깅 6회 목표',
-            serving: '여름 성경학교 주차/배식 봉사 2회 참여'
+            health: '저녁 8시 야외 조깅 6회 목표',
+            serving: '주일학교 주차/배식 봉사 2회 참여'
           },
           calendarMemos: {
-            '2026-07-01': '기말고사 끝! 플래너 시작',
-            '2026-07-04': '무대 스케치 아이디어 구상 회의',
-            '2026-07-07': '수학 학원 레벨 테스트',
-            '2026-07-12': '친구 연극 발표회 관람 예정'
+            [format(subDays(today, 8), 'yyyy-MM-dd')]: '시험 끝! 플래너 시작',
+            [format(subDays(today, 5), 'yyyy-MM-dd')]: '무대 스케치 아이디어 구상 회의',
+            [format(subDays(today, 2), 'yyyy-MM-dd')]: '수학 학원 레벨 테스트',
+            [format(subDays(today, -3), 'yyyy-MM-dd')]: '친구 연극 발표회 관람 예정'
           }
         };
 
-        // 5. Weekly Plans (2026-W28: 2026-07-06 ~ 2026-07-12)
+        // 5. Weekly Plans (이번 주)
         const demoWeeklyPlans: WeeklyPlanItem[] = [
           {
             id: 'demo-w1',
-            week: '2026-W28',
+            week: weekStr,
             area: 'study',
             content: '수학 개념서 2단원 오답 노트 정리',
             activeDays: ['mon', 'wed', 'fri'],
-            checks: { mon: 'O', wed: 'O' }
+            checks: buildChecks(['mon', 'wed', 'fri'])
           },
           {
             id: 'demo-w2',
-            week: '2026-W28',
+            week: weekStr,
             area: 'portfolio',
             content: '템페스트 1막 무대 스케치 그리기',
             activeDays: ['tue', 'thu', 'sat'],
-            checks: { tue: 'O', thu: 'O' }
+            checks: buildChecks(['tue', 'thu', 'sat'])
           },
           {
             id: 'demo-w3',
-            week: '2026-W28',
+            week: weekStr,
             area: 'health',
             content: '저녁 조깅 30분 & 스트레칭',
             activeDays: ['mon', 'wed', 'fri', 'sun'],
-            checks: { mon: 'O', wed: '△' }
+            checks: buildChecks(['mon', 'wed', 'fri', 'sun'], true)
           },
           {
             id: 'demo-w4',
-            week: '2026-W28',
+            week: weekStr,
             area: 'serving',
             content: '방 정리정돈 및 거실 청소',
             activeDays: ['sat', 'sun'],
@@ -373,20 +402,16 @@ export const usePlannerStore = create<PlannerState>()(
           }
         ];
 
-        // 6. Attendance Records (Last 6 days: July 3 to July 8)
-        const demoAttendance: AttendanceRecord[] = [
-          { date: '2026-07-03', source: 'planner' },
-          { date: '2026-07-04', source: 'math-app' },
-          { date: '2026-07-05', source: 'planner' },
-          { date: '2026-07-06', source: 'planner' },
-          { date: '2026-07-07', source: 'math-app' },
-          { date: '2026-07-08', source: 'planner' }
-        ];
+        // 6. Attendance Records (어제까지 최근 6일 연속 출석 → 오늘 출석 시 7일째)
+        const demoAttendance: AttendanceRecord[] = Array.from({ length: 6 }, (_, i) => ({
+          date: format(subDays(today, 6 - i), 'yyyy-MM-dd'),
+          source: (i % 3 === 1 ? 'math-app' : 'planner') as AttendanceRecord['source']
+        }));
 
-        // 7. Daily Logs for previous days
+        // 7. Daily Logs (어제 기록)
         const demoDailyLogs: DailyLog[] = [
           {
-            date: '2026-07-08',
+            date: format(subDays(today, 1), 'yyyy-MM-dd'),
             verse: '지혜를 얻는 것이 은을 얻는 것보다 낫고 그 이익이 정금보다 나음이니라 (잠언 3:14)',
             prayer: '지혜를 구하며 공부에 집중하게 하소서.',
             resolution: '공부 계획을 다 실천해보자!',
@@ -402,26 +427,25 @@ export const usePlannerStore = create<PlannerState>()(
           }
         ];
 
-        // 8. Economy Month (July 2026)
+        // 8. Economy Month (이번 달)
         const demoEconomy: EconomyMonth = {
-          month: '2026-07',
+          month: monthStr,
           serving: {
-            period: '7월 1주차 ~ 4주차',
+            period: `${monthLabel} 1주차 ~ 4주차`,
             items: [
-              { content: '교회 주일학교 청소 돕기', unitPrice: 5000, count: 2 },
-              { content: '가족 신발장 정리', unitPrice: 3000, count: 3 }
-            ],
-            rating: 'good'
+              { date: format(subDays(today, 7), 'yyyy-MM-dd'), content: '교회 주일학교 청소 돕기', unitPrice: 5000, count: 2, rating: 'good' },
+              { content: '가족 신발장 정리', unitPrice: 3000, count: 3, rating: 'ok' }
+            ]
           },
           spendingPlan: [
-            { category: 'tithe', label: '7월 십일조', amount: 2000 },
-            { category: 'donation', label: '컴패션 아동 후원', amount: 3000 },
+            { category: 'tithe', label: `${monthLabel} 십일조`, amount: 2000 },
+            { date: format(subDays(today, -5), 'yyyy-MM-dd'), category: 'donation', label: '컴패션 아동 후원', amount: 3000 },
             { category: 'saving', label: '카카오뱅크 저금통', amount: 5000 },
             { category: 'personal', label: '학용품 및 스케치북', amount: 8000 }
           ],
           spendingActual: [
-            { date: '2026-07-05', category: 'donation', label: '컴패션 아동 후원', amount: 3000 },
-            { date: '2026-07-07', category: 'personal', label: '크로키용 4B 연필', amount: 1500 }
+            { date: format(subDays(today, 4), 'yyyy-MM-dd'), category: 'donation', label: '컴패션 아동 후원', amount: 3000 },
+            { date: format(subDays(today, 2), 'yyyy-MM-dd'), category: 'personal', label: '크로키용 4B 연필', amount: 1500 }
           ],
           review: {
             satisfied: '주일학교 봉사를 통해 섬김의 의미를 배우고 계획적으로 지출하고 있다.',
@@ -429,7 +453,7 @@ export const usePlannerStore = create<PlannerState>()(
           }
         };
 
-        const calculatedStreak = calculateStreak(demoAttendance, '2026-07-09');
+        const calculatedStreak = calculateStreak(demoAttendance, todayStr);
 
         set({
           profile: demoProfile,

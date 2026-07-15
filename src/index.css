@@ -1906,6 +1906,23 @@ textarea::placeholder, input::placeholder {
   border-color: var(--line) !important;
 }
 
+.rating-inline-group {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.rating-btn-sm {
+  padding: 1px 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 1px 1px 0 var(--shadow);
+  opacity: 0.45;
+}
+
+.rating-btn-sm.active {
+  opacity: 1;
+}
+
 .economy-two-cols {
   display: grid;
   grid-template-columns: 1fr 1fr;

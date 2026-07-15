@@ -29,6 +29,7 @@ export const Monthly: React.FC = () => {
     qProfile,
     linkQProfile,
     unlinkQProfile,
+    updateQProfile,
     getYearGoals,
     updateYearGoals,
     getMonthlyPlan,
@@ -36,17 +37,16 @@ export const Monthly: React.FC = () => {
     attendanceRecords
   } = usePlannerStore();
 
-  const isDemo = profile.name === '이지수';
-  const [currentDate, setCurrentDate] = useState(isDemo ? new Date(2026, 6, 9) : new Date());
+  const [currentDate, setCurrentDate] = useState(new Date());
   const monthStr = format(currentDate, 'yyyy-MM');
   const yearNum = currentDate.getFullYear();
 
   const yearGoals = getYearGoals(yearNum);
   const monthlyPlan = getMonthlyPlan(monthStr);
 
-  const [mission, setMission] = useState(profile.qLinked ? qProfile.missionStatement || '' : '');
-  const [jobs, setJobs] = useState(profile.qLinked ? qProfile.futureJobs?.join(', ') || '' : '');
-  const [school, setSchool] = useState(profile.qLinked ? qProfile.majorsSchools?.join(', ') || '' : '');
+  const [mission, setMission] = useState(qProfile.missionStatement || '');
+  const [jobs, setJobs] = useState(qProfile.futureJobs?.join(', ') || '');
+  const [school, setSchool] = useState(qProfile.majorsSchools?.join(', ') || '');
 
   const [editingGoals, setEditingGoals] = useState({ ...yearGoals.goals });
   const [editingPlans, setEditingPlans] = useState({ ...monthlyPlan.plans });
@@ -59,12 +59,13 @@ export const Monthly: React.FC = () => {
   React.useEffect(() => {
     setEditingGoals({ ...yearGoals.goals });
     setEditingPlans({ ...monthlyPlan.plans });
-    if (profile.qLinked) {
-      setMission(qProfile.missionStatement || '');
-      setJobs(qProfile.futureJobs?.join(', ') || '');
-      setSchool(qProfile.majorsSchools?.join(', ') || '');
-    }
-  }, [monthStr, yearNum, JSON.stringify(yearGoals.goals), JSON.stringify(monthlyPlan.plans), profile.qLinked]);
+    setMission(qProfile.missionStatement || '');
+    setJobs(qProfile.futureJobs?.join(', ') || '');
+    setSchool(qProfile.majorsSchools?.join(', ') || '');
+  }, [monthStr, yearNum, JSON.stringify(yearGoals.goals), JSON.stringify(monthlyPlan.plans), profile.qLinked, qProfile.missionStatement, JSON.stringify(qProfile.futureJobs), JSON.stringify(qProfile.majorsSchools)]);
+
+  const toList = (value: string) =>
+    value.split(',').map(s => s.trim()).filter(Boolean);
 
   const handleQSyncToggle = () => {
     if (profile.qLinked) {
@@ -144,6 +145,7 @@ export const Monthly: React.FC = () => {
             <textarea
               value={mission}
               onChange={(e) => setMission(e.target.value)}
+              onBlur={() => updateQProfile({ missionStatement: mission })}
               placeholder="내 인생의 목표를 적거나 Q 연동을 진행해 보세요."
               disabled={profile.qLinked}
             />
@@ -157,6 +159,7 @@ export const Monthly: React.FC = () => {
               type="text"
               value={jobs}
               onChange={(e) => setJobs(e.target.value)}
+              onBlur={() => updateQProfile({ futureJobs: toList(jobs) })}
               placeholder="장래 직업이나 봉사 계획..."
               disabled={profile.qLinked}
               style={{ width: '100%', height: '40px' }}
@@ -169,6 +172,7 @@ export const Monthly: React.FC = () => {
               type="text"
               value={school}
               onChange={(e) => setSchool(e.target.value)}
+              onBlur={() => updateQProfile({ majorsSchools: toList(school) })}
               placeholder="목표 대학교 혹은 전공 학과..."
               disabled={profile.qLinked}
               style={{ width: '100%', height: '40px' }}
@@ -247,7 +251,7 @@ export const Monthly: React.FC = () => {
           {calendarDays.map((day) => {
             const dateStr = format(day, 'yyyy-MM-dd');
             const memo = monthlyPlan.calendarMemos[dateStr];
-            const isToday = isSameDay(day, isDemo ? new Date(2026, 6, 9) : new Date());
+            const isToday = isSameDay(day, new Date());
             const isCurrentMonth = isSameMonth(day, monthStart);
             const attendance = attendanceRecords.find(r => r.date === dateStr);
             const wdIdx = getDay(day); // 0: Sun, 6: Sat

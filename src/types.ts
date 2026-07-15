@@ -71,10 +71,14 @@ export interface StreakState {
 
 export type SpendCategory = 'tithe' | 'donation' | 'saving' | 'personal';
 
+export type SelfRating = 'good' | 'ok' | 'bad';
+
 export interface ServingItem {
+  date?: string; // yyyy-mm-dd (선택 입력)
   content: string;
   unitPrice: number;
   count: number;
+  rating?: SelfRating; // 항목별 활동 성실도 자가평가
 }
 
 export interface SpendingPlanItem {
